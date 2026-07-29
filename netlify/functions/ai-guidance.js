@@ -205,10 +205,11 @@ ${parts.join('\n')}`;
           contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
           systemInstruction: { parts: [{ text: systemPrompt }] },
           generationConfig: {
-            maxOutputTokens: 1200,
+            maxOutputTokens: 2048,
             temperature: 0.65,
             topP: 0.9,
-            topK: 40
+            topK: 40,
+            thinkingConfig: { thinkingBudget: 0 }
           }
         })
       }
@@ -221,9 +222,14 @@ ${parts.join('\n')}`;
 
     const data = await response.json();
     const candidate = (data.candidates && data.candidates[0]) || null;
-    const guidance = candidate
-      ? (candidate.content.parts || []).map(p => p.text || '').join('').trim()
-      : '';
+    const guidance = candidate && candidate.content && candidate.content.parts
+    ? candidate.content.parts.map(p => p.text || '').join('').trim()
+    : '';
+
+if (!guidance) {
+  console.log('Empty guidance. finishReason:', candidate?.finishReason,
+              'usage:', JSON.stringify(data.usageMetadata));
+}
 
     return {
       statusCode: 200,
