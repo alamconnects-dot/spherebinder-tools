@@ -168,7 +168,8 @@ Hard constraints (do not violate these):
 - Do NOT give financial, investment, banking or loan advice.
 - Do NOT guarantee admission, scholarships, employment or future salary.
 - Avoid political, religious and culturally sensitive content.
-- End with practical next steps that the student can realistically take.`;
+- End with practical next steps that the student can realistically take.
+`;
 
   const userPrompt = `The following information comes directly from the student's completed SphereBinder tools.
 Carefully analyse the results as a whole.
