@@ -171,7 +171,8 @@ Hard constraints (do not violate these):
 - End with practical next steps that the student can realistically take.
 `;
 
-  const userPrompt = `The following information comes directly from the student's completed SphereBinder tools.
+const userPrompt = `
+The following information comes directly from the student's completed SphereBinder tools.
 Carefully analyse the results as a whole.
 Do not simply repeat the information provided.
 Instead:
