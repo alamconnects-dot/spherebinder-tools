@@ -190,8 +190,9 @@ If three or more tools have been completed:
 - Explain where the results reinforce or challenge each other.
 - Highlight realistic trade-offs and opportunities.
 Student results:
-${parts.join('\n')}`;
 
+${parts.join('\n')}
+`;
   try {
     const response = await fetch(
       https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent
