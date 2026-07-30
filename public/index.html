@@ -781,6 +781,33 @@ function renderSnapshot(){
 }
 renderSnapshot();
 
+function formatAiReport(text){
+  // Escape HTML first — this is AI-generated text, never trust it as raw HTML
+  const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const lines = esc(text).split('\n');
+  let html = '';
+  let inList = false;
+  for(let raw of lines){
+    const line = raw.trim();
+    if(line === ''){ continue; }
+    if(line.startsWith('## ')){
+      if(inList){ html += '</ul>'; inList = false; }
+      html += `<h4 style="font-family:var(--font-head);color:var(--navy);font-size:14.5px;margin:16px 0 8px;">${line.slice(3)}</h4>`;
+    } else if(line.startsWith('- ')){
+      if(!inList){ html += '<ul style="margin:0 0 10px;padding-left:20px;">'; inList = true; }
+      html += `<li style="font-size:13px;line-height:1.6;margin-bottom:4px;">${boldify(line.slice(2))}</li>`;
+    } else {
+      if(inList){ html += '</ul>'; inList = false; }
+      html += `<p style="font-size:13.5px;line-height:1.7;color:var(--ink);margin:0 0 10px;">${boldify(line)}</p>`;
+    }
+  }
+  if(inList) html += '</ul>';
+  return html;
+}
+function boldify(s){
+  return s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 async function requestAiGuidance(){
   const btn = document.getElementById('aiGuidanceBtn');
   const out = document.getElementById('aiGuidanceOutput');
@@ -801,7 +828,7 @@ async function requestAiGuidance(){
     } else {
       out.innerHTML = `<div class="ai-guidance-card">
         <div class="ai-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg> AI Guidance — based on your results above</div>
-        <p>${data.guidance}</p>
+        ${formatAiReport(data.guidance)}
       </div>`;
     }
   }catch(e){

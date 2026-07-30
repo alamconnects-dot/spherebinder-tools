@@ -1,11 +1,14 @@
 // Cloudflare Worker (with Static Assets): serves the SphereBinder Student Tools
 // site, and handles the /api/ai-guidance route for the AI Guidance feature.
 //
-// Requires an environment variable set in Cloudflare:
-//   Worker -> Settings -> Variables and Secrets -> add GEMINI_API_KEY (as a Secret)
-//   (get a key at https://aistudio.google.com/apikey — no credit card required)
+// Uses Cloudflare Workers AI (env.AI binding) to generate the report — this runs
+// directly on Cloudflare's own infrastructure, so no external API key is needed
+// and no cross-provider geo-blocking is possible (unlike calling Gemini directly,
+// which failed with "User location is not supported" depending on which edge
+// colo Cloudflare routed the request through).
 //
-// The API key NEVER touches the browser — it only lives here, server-side.
+// Free tier: 10,000 Neurons/day, no credit card required. The "ai" binding in
+// wrangler.jsonc is all that's needed — Cloudflare handles auth automatically.
 
 export default {
   async fetch(request, env, ctx) {
@@ -23,11 +26,6 @@ export default {
 async function handleAiGuidance(request, env) {
   if (request.method !== 'POST') {
     return json({ error: 'Method Not Allowed' }, 405);
-  }
-
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return json({ error: 'GEMINI_API_KEY is not configured on the server.' }, 500);
   }
 
   let snapshot;
@@ -63,96 +61,38 @@ async function handleAiGuidance(request, env) {
 
   const completedTools = parts.length;
 
-  const systemPrompt = `You are a senior education and career advisor writing on behalf of SphereBinder, an independent education advisory firm licensed in Sharjah, UAE.
-You are preparing a personalised advisory report for a student based only on the results they have generated using SphereBinder's free tools.
-Your advice should reflect the quality of an experienced education consultant rather than a generic AI response.
-Write confidently but realistically using professional British English.
-Write a personalised advisory report of approximately 300-500 words.
-Structure the report using the following headings:
-## Overall Assessment
-Provide a concise summary of what the student's results suggest overall.
-Synthesise all completed SphereBinder tools into one coherent interpretation.
-Avoid discussing each tool separately.
-Explain how the student's personality, academic interests, university preferences, financial considerations and long-term aspirations reinforce each other or where they reveal meaningful trade-offs or unanswered questions.
-## Career Direction
-Explain what the student's SCIA profile means in practical terms.
-Describe the types of work environments where the student is likely to thrive, the kinds of responsibilities they may naturally enjoy, the strengths this profile typically brings, the potential challenges they should be aware of, and how these characteristics relate to their recommended degree and career direction.
-Avoid generic personality descriptions. Make the explanation specific to the student's overall results.
-## Degree Alignment
-Explain why the recommended degree is a good match (or not) for the student's overall profile, considering their SCIA profile, stated career aspirations, academic interests, preferred style of work, and university preferences (if available).
-If there are any inconsistencies or trade-offs, explain them clearly and objectively.
-If important information is missing, state what additional information would improve the recommendation rather than making assumptions.
-## University & Investment
-Discuss the recommended university in the context of the student's overall profile, considering academic fit, career alignment, estimated investment, and available scholarship opportunities (if any).
-Explain any trade-offs between quality, fit and affordability. If the lowest-cost option is not the best-fit option, explain why this may be worth considering.
-Do not recommend a university solely because it is cheaper or more expensive. Do not provide financial, investment or borrowing advice.
-If no university comparison has been completed, explain what information is still needed before meaningful recommendations can be made.
-## Scholarships
-Explain how scholarships fit into the student's overall education plan.
-If scholarships have been identified, explain how they could reduce the overall cost of study, encourage the student to review eligibility requirements and application deadlines, and explain that scholarship decisions are competitive and based on individual criteria.
-If no scholarships have been identified, explain why completing scholarship research should be a priority and encourage the student to explore merit-based, need-based and institution-specific opportunities.
-Do not estimate the likelihood of receiving a scholarship. Do not imply that applying will guarantee funding.
-## Recommended Next Steps
-Provide exactly five prioritised recommendations. For each: explain what the student should do, why it is important, how it connects to their SphereBinder results, and keep it practical and achievable.
-Avoid vague advice such as "do more research" or "think carefully". List the highest-priority action first.
-Report quality expectations:
-- Write naturally as if speaking directly to one student.
-- Do not repeat the same information in different sections.
-- Explain your reasoning instead of simply listing results.
-- Where information is missing, acknowledge the limitation rather than guessing.
-- Use an encouraging but realistic tone.
-- Finish with a short concluding paragraph (2-3 sentences) that summarises the student's overall position and reinforces their highest-priority next action.
-Hard constraints (do not violate these):
-- Only use information supplied in the student's SphereBinder results.
-- Never invent universities, degrees, scholarships, careers, statistics or rankings.
-- If important information is missing, acknowledge that rather than guessing.
-- Do NOT recommend a specific paid SphereBinder package or use sales language.
-- Do NOT give immigration, visa, residency or legal advice.
-- Do NOT give financial, investment, banking or loan advice.
-- Do NOT guarantee admission, scholarships, employment or future salary.
-- Avoid political, religious and culturally sensitive content.`;
+  const systemPrompt = `You are a senior education and career advisor for SphereBinder, an independent advisory firm in Sharjah, UAE. Write a personalised advisory report (250-350 words total) for a student, using ONLY the facts given below. Warm but realistic tone, British English.
 
-  const userPrompt = `The following information comes directly from the student's completed SphereBinder tools.
-Carefully analyse the results as a whole. Do not simply repeat the information provided.
-Identify patterns, explain why results support or challenge each other, identify gaps, discuss realistic opportunities and trade-offs, and provide practical advice based only on the available information.
-The student has completed ${completedTools} SphereBinder tool(s).
-If only one or two tools have been completed, explain what meaningful conclusions can already be drawn, clearly state which important information is still unavailable, and recommend the single most valuable SphereBinder tool to complete next.
-If three or more tools have been completed, focus on connecting the results into one coherent picture, highlighting where they reinforce or challenge each other.
-Student results:
+Use these headings exactly:
+## Overall Assessment
+Synthesise all their results into one coherent picture — don't discuss each tool separately.
+## Career Direction
+What their SCIA profile means practically: likely strengths, work styles, and challenges.
+## Degree Alignment
+Whether their chosen degree fits their profile and stated goals.
+## University & Investment
+Note any cost-vs-fit trade-off. No financial or investment advice.
+## Scholarships
+One short note on priority. Never guarantee funding.
+## Next Steps
+Exactly 3 prioritised, specific actions — not vague advice like "do more research."
+
+Hard rules: never invent universities, scholarships, statistics, or outcomes not given below. No immigration/visa/legal advice. No guaranteed outcomes (admission, funding, salary). No political or religious content. Don't name or push a specific paid SphereBinder package.`;
+
+  const userPrompt = `Student has completed ${completedTools} SphereBinder tool(s). If only 1-2, note what's missing and suggest the next most useful tool. Results:
 ${parts.join('\n')}`;
 
   try {
-    const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          generationConfig: {
-            maxOutputTokens: 1200,
-            temperature: 0.65,
-            topP: 0.9,
-            topK: 40
-          }
-        })
-      }
-    );
+    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: 900,
+      temperature: 0.65
+    });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return json({ error: 'AI provider error', detail: errText }, 502);
-    }
-
-    const data = await response.json();
-    const candidate = (data.candidates && data.candidates[0]) || null;
-    const guidance = candidate
-      ? (candidate.content.parts || []).map(p => p.text || '').join('').trim()
-      : '';
+    const guidance = (response && response.response) ? response.response.trim() : '';
 
     return json({ guidance: guidance || "Couldn't generate guidance right now — please try again in a moment." });
   } catch (e) {
