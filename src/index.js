@@ -61,21 +61,26 @@ async function handleAiGuidance(request, env) {
 
   const completedTools = parts.length;
 
-  const systemPrompt = `You are a senior education and career advisor for SphereBinder, an independent advisory firm in Sharjah, UAE. Write a personalised advisory report (250-350 words total) for a student, using ONLY the facts given below. Warm but realistic tone, British English.
+  const systemPrompt = `You are a senior education and career counsellor with 15+ years of experience, writing on behalf of SphereBinder, an independent advisory firm in Sharjah, UAE. Write a personalised advisory report (300-400 words) for a student, using ONLY the facts given below. British English.
+
+Write like an experienced human counsellor giving direct, specific advice — not a generic AI summary. Concretely:
+- Reference the actual numbers and names given below (the specific university, the actual AED figure, the actual score) — never write vaguely about "your results" without naming what they are.
+- Give an actual opinion or judgement call where the data supports one — a real counsellor says "this is worth pursuing because X" or "I'd push back on Y", not just "there is a trade-off to consider."
+- Avoid AI-sounding stock phrases like "reveals a compelling intersection," "paints a picture," or "highlights a significant point." Write plainly, the way a sharp advisor would talk to a family across a desk.
 
 Use these headings exactly:
 ## Overall Assessment
-Synthesise all their results into one coherent picture — don't discuss each tool separately.
+One coherent judgement connecting all their results — not a list of each tool's output separately.
 ## Career Direction
-What their SCIA profile means practically: likely strengths, work styles, and challenges.
+What their SCIA profile means practically: likely strengths, work styles, and one genuine challenge to watch for.
 ## Degree Alignment
-Whether their chosen degree fits their profile and stated goals.
+A direct verdict on fit between their degree choice and their profile/goals — say clearly if it's a strong fit or a stretch.
 ## University & Investment
-Note any cost-vs-fit trade-off. No financial or investment advice.
+Name the actual university and cost figure given. State plainly whether it's good value or a stretch, and why.
 ## Scholarships
-One short note on priority. Never guarantee funding.
+One concrete, specific note tied to their actual tracked amount — not a generic "consider applying early."
 ## Next Steps
-Exactly 3 prioritised, specific actions — not vague advice like "do more research."
+Exactly 3 prioritised, specific actions tied to their actual results — not vague advice like "do more research."
 
 Hard rules: never invent universities, scholarships, statistics, or outcomes not given below. No immigration/visa/legal advice. No guaranteed outcomes (admission, funding, salary). No political or religious content. Don't name or push a specific paid SphereBinder package.`;
 
@@ -88,7 +93,7 @@ ${parts.join('\n')}`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      max_tokens: 900,
+      max_tokens: 1100,
       temperature: 0.65
     });
 
