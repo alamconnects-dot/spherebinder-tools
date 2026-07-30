@@ -83,7 +83,7 @@ Hard rules: never invent universities, scholarships, statistics, or outcomes not
 ${parts.join('\n')}`;
 
   try {
-    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    const response = await env.AI.run('@cf/google/gemma-4-26b-a4b-it', {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
