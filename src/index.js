@@ -88,7 +88,7 @@ Hard rules: never invent universities, scholarships, statistics, or outcomes not
 ${parts.join('\n')}`;
 
   try {
-    const response = await env.AI.run('@cf/google/gemma-4-26b-a4b-it', {
+    const response = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -97,9 +97,26 @@ ${parts.join('\n')}`;
       temperature: 0.65
     });
 
-    const guidance = (response && response.response) ? response.response.trim() : '';
+    // Defensive parsing: different Workers AI models occasionally shape their
+    // response differently (e.g. reasoning models split "reasoning" vs "response").
+    // Try the common shapes before giving up.
+    let guidance = '';
+    if (response) {
+      if (typeof response.response === 'string') guidance = response.response;
+      else if (typeof response.result === 'string') guidance = response.result;
+      else if (response.choices && response.choices[0] && response.choices[0].message) guidance = response.choices[0].message.content || '';
+    }
+    guidance = (guidance || '').trim();
 
-    return json({ guidance: guidance || "Couldn't generate guidance right now — please try again in a moment." });
+    if (!guidance) {
+      // Surface exactly what the model returned so this can be diagnosed instead of guessed at again.
+      return json({
+        error: 'Empty response from model',
+        detail: JSON.stringify(response).slice(0, 500)
+      }, 502);
+    }
+
+    return json({ guidance });
   } catch (e) {
     return json({ error: 'Server error', detail: String(e) }, 500);
   }
